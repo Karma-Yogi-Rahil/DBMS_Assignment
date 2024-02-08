@@ -1,6 +1,7 @@
 /*
 Skeleton code for storage and buffer management
 
+
 */
 
 #include <string>
@@ -30,29 +31,62 @@ int main(int argc, char* const argv[]) {
         return 1;
     }
 
-    // Loop to lookup IDs until user is ready to quit
-    //int id;
-    int64_t id;
+//    // Loop to lookup IDs until user is ready to quit
+//    //int id;
+//    int64_t id;
+//    while (true) {
+//        cout << "Enter an Employee ID to search for (or -1 to quit): ";
+//        if (!(cin >> id)) {
+//            cin.clear(); // Clear the error flag
+//            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+//            cout << "Invalid input. Please enter a valid Employee ID \n ";
+//            continue;
+//        }
+//
+//        if (id == -1) break;
+//
+//        try {
+//            Record record = manager.findRecordById(id);
+//            if (record.id != -1) {
+//                record.print();
+//            } else {
+//                cout << "Record not found." << endl;
+//            }
+//        } catch (const std::exception& e) {
+//            cerr << "Error during search: " << e.what() << endl;
+//        }
+//    }
+//
+//    cout << "Exiting the program." << endl;
+//    return 0;
+
+
+    string input;
     while (true) {
-        cout << "Enter an Employee ID to search for (or -1 to quit): ";
-        if (!(cin >> id)) {
-            cin.clear(); // Clear the error flag
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-            cout << "Invalid input. Please enter a valid Employee ID \n ";
-            continue;
-        }
+        cout << "Enter Employee IDs to search for (comma-separated, or -1 to quit): ";
+        getline(cin, input);
 
-        if (id == -1) break;
+        if (input == "-1") break;
 
-        try {
-            Record record = manager.findRecordById(id);
-            if (record.id != -1) {
-                record.print();
-            } else {
-                cout << "Record not found." << endl;
+        stringstream ss(input);
+        string idStr;
+        while (getline(ss, idStr, ',')) {
+            int64_t id;
+            stringstream convert(idStr);
+            if (!(convert >> id)) {
+                cout << "Invalid input: " << idStr << ". Please enter valid Employee IDs.\n";
+                continue;
             }
-        } catch (const std::exception& e) {
-            cerr << "Error during search: " << e.what() << endl;
+            try {
+                Record record = manager.findRecordById(id);
+                if (record.id != -1) {
+                    record.print();
+                } else {
+                    cout << "Record not found for ID: " << id << endl;
+                }
+            } catch (const std::exception& e) {
+                cerr << "Error during search: " << e.what() << endl;
+            }
         }
     }
 
