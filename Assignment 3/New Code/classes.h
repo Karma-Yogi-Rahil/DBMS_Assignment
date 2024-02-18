@@ -4,6 +4,8 @@
 #include <iostream>
 #include <sstream>
 #include <bitset>
+#include <cstdint>
+
 using namespace std;
 
 class Record {
@@ -24,7 +26,27 @@ public:
         cout << "\tBIO: " << bio << "\n";
         cout << "\tMANAGER_ID: " << manager_id << "\n";
     }
+
+    void writeSerializeRecord(fstream &indexFile) {
+
+        int64_t extendedEmployeeId = static_cast<int64_t>(id);
+        int64_t extendedManagerId = static_cast<int64_t>(manager_id);
+
+        // Writing the extended (padded) IDs and textual information to the data file
+        indexFile.write(reinterpret_cast<const char *>(&extendedEmployeeId), sizeof(extendedEmployeeId));
+        indexFile.put('|'); // Using a different delimiter for variety
+        indexFile << fullName;
+        indexFile.put('|');
+        indexFile << profile;
+        indexFile.put('|');
+        indexFile.write(reinterpret_cast<const char *>(&extendedManagerId), sizeof(extendedManagerId));
+        indexFile.put('|');
+    }
 };
+
+
+
+
 
 
 class LinearHashIndex {
