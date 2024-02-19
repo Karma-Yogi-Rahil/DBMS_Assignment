@@ -1,67 +1,62 @@
 /*
-Skeleton code for linear hash indexing
+
+
+DBMS - Assignment w6
+
+
+1. Abhishek Manyam - 934476801 - manyama@oregonstate.edu
+2. Rishitha Pokalkar - 934474549 - pokalkar@oregonstate.edu
+
+
 */
 
-#include <ios>
+#include <iostream>
 #include <fstream>
 #include <vector>
 #include <string>
-#include <iostream>
 #include <sstream>
-#include <stdexcept>
-#include <cmath>
 #include "classes.h"
+#include <stdexcept>
+
 using namespace std;
 
-
 int main(int argc, char* const argv[]) {
-
     // Create the index
     LinearHashIndex emp_index("EmployeeIndex");
     emp_index.createFromFile("Employee.csv");
-    
-    // Loop to lookup IDs until user is ready to quit
-    // ASSUMES USER INPUT IS MOSTLY CORRECT (I.E USER
-    // ENTERS A VALID INTEGER ID INSTEAD OF ID THAT
-    // DOESN'T EXIST OR A STRING, CAN DO ONLY BASIC
-    // ERROR HANDLING)
-    do
-    {
-        cout << "\n*******Linear Hash Index ID Search********\n";
-		cout << "Enter ID to search\n";
-		cout << "Enter 0 or negative number to quit\n";
-		cout << "******************************************\n";
 
-        int user_input;
-        cout << ">> ";
-        cin >> user_input;
 
-        // Validate user input
-        while(cin.fail()) {
 
-            cout << "Error: Invalid ID!\n";
-            cin.clear();
-            cin.ignore(256, '\n');
-            cout << ">> ";
-            cin >> user_input;
 
-        }
 
-        // Search or quit
-        if (user_input > 0) {
+    // Loop to lookup IDs until the user is ready to quit
 
-            cout << "Searching for ID " << user_input << "...\n";
+       int id;
+    try{
 
-            Record targetRecord = emp_index.findRecordById(user_input);
+    while (true) {
+ 
+        cout << "Enter an Employee ID (or q to quit): ";
+        cin >> id;
 
-            // Print record
-            targetRecord.print();
-
-        }
-        else
+        if (id == 'q')
             break;
 
-    } while (true);
-    
-    return 0;
+    Record record = emp_index.findRecordById(id);
+     if (record.id != -1) {
+            cout << "Record found:\n";
+            record.print();
+        } 
+
+
 }
+    }
+catch(const std::exception& e) {
+
+    std::cout << "id :" << id << "  " << e.what() << std::endl;
+}
+
+    return 0;
+
+};
+
