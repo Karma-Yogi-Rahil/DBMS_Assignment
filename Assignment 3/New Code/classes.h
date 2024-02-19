@@ -35,9 +35,9 @@ public:
         // Writing the extended (padded) IDs and textual information to the data file
         indexFile.write(reinterpret_cast<const char *>(&extendedEmployeeId), sizeof(extendedEmployeeId));
         indexFile.put('|'); // Using a different delimiter for variety
-        indexFile << fullName;
+        indexFile << name;
         indexFile.put('|');
-        indexFile << profile;
+        indexFile << bio;
         indexFile.put('|');
         indexFile.write(reinterpret_cast<const char *>(&extendedManagerId), sizeof(extendedManagerId));
         indexFile.put('|');
@@ -103,4 +103,43 @@ public:
     Record findRecordById(int id) {
         
     }
+};
+
+class Block{
+private:
+    const int Page_Max_Size = 4096;
+public:
+    vector<Record> BlockRecords;
+
+    int BlockSize;
+    int BlockIndex;
+    Block() {
+        BlockSize = 0;
+        BlockIndex = 0;
+    }
+
+    Block(int physIdx) {
+        BlockSize = 0;
+        BlockIndex = physIdx;
+    }
+
+    void ReadIndexRecord(fstream &InputStreamFile){
+        int64_t extendedEmployeeId;
+        int64_t extendedManagerId;
+        string name, bio;
+
+        InputStreamFile.read(reinterpret_cast<char *>(&extendedEmployeeId), sizeof(extendedEmployeeId));
+        InputStreamFile.ignore(1,'|');
+        getline(InputStreamFile,name,'~');
+        getline(InputStreamFile,bio,'~');
+        InputStreamFile.read(reinterpret_cast<char *>(&extendedManagerId), sizeof(extendedManagerId));
+        InputStreamFile.ignore(1,'|');
+
+    }
+
+    int NumberRcord ;
+    int OverFlowPointerIndex;
+
+
+
 };
