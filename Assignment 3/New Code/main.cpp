@@ -1,5 +1,17 @@
 /*
-Skeleton code for linear hash indexing
+Skeleton code for storage and buffer management
+
+Member 1
+Name : Shreeya Badhe
+OSU email :badhes@oregonstate.edu
+ONID :badhes
+
+
+Member 2
+Name : Rahil Piyush Mehta
+OSU email : mehtara@oregonstate.edu
+ONID : mehtara
+
 */
 
 #include <string>
@@ -24,31 +36,43 @@ int main(int argc, char* const argv[]) {
 
     
     // Loop to lookup IDs until user is ready to quit
-    int id;
+    string input;
     try{
 
         while (true) {
 
-            cout << "Enter an Employee ID (or q to quit): ";
-                     cin >> id;
+            cout << "Enter Employee IDs to search for (comma-separated, or -1 to quit): ";
+            getline(cin, input);
 
-            if (id == 'q')
-                break;
+            if (input == "-1") break;
+            stringstream ss(input);
+            string idStr;
 
-            Record record = emp_index.findRecordById(id);
-            if (record.id != -1) {
-                cout << "Record found:\n";
-                record.print();
+            while (getline(ss, idStr, ',')) {
+                int64_t id;
+                stringstream convert(idStr);
+                if (!(convert >> id)) {
+                    cout << "Invalid input: " << idStr << ". Please enter valid Employee IDs.\n";
+                    continue;
+                }
+                try {
+                    Record record = emp_index.findRecordById(id);
+                    if (record.id != -1) {
+                        record.print();
+                    } else {
+                        cout << "Record not found for ID: " << id << endl;
+                    }
+                } catch (const std::exception& e) {
+                    cerr << "Error during search: " << e.what() << endl;
+                }
             }
-
 
         }
     }
     catch(const std::exception& e) {
 
-        std::cout << "id :" << id << "  " << e.what() << std::endl;
+        std::cout << "id :" << input << "  " << e.what() << std::endl;
     }
-    
 
     return 0;
 }
