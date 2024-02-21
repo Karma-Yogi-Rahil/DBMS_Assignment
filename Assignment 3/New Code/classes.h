@@ -20,6 +20,8 @@ public:
         manager_id = stoi(fields[3]);
     }
 
+    Record(int invalidId) : id(invalidId), manager_id(-1), bio(""), name("") {}
+
     void print() {
         cout << "\tID: " << id << "\n";
         cout << "\tNAME: " << name << "\n";
@@ -97,11 +99,11 @@ public:
         storageFile.seekg(physicalIndex * BlockCapacity); // Navigate to the correct block
         storageFile.read(reinterpret_cast<char *>(&nextBlockIndex), sizeof(nextBlockIndex));
         storageFile.read(reinterpret_cast<char *>(&recordCount), sizeof(recordCount));
-        utilizedSpace += sizeof(nextBlockIndex) + sizeof(recordCount); // Adjusting for metadata space
+        utilizedSpace += 8; // Adjusting for metadata space
 
         for (int i = 0; i < recordCount; ++i) {
             loadRecordFromStorage(storageFile);
-            utilizedSpace += blockRecords.back().calcSize(); // Update block's utilized space
+            utilizedSpace += blockRecords[i].calcSize(); // Update block's utilized space
         }
     }
 };
@@ -291,7 +293,7 @@ private:
 
 
         // Hash the record ID and get the last i bits to determine the bucket index
-        int bucketIndex = getLastIthBits(hash(record.id), i);
+        int bucketIndex = getLastTHBits(GethashValue(record.id), i);
 
         // Adjust bucket index if it's greater than or equal to the number of buckets
         if (bucketIndex >= n) {
@@ -330,12 +332,12 @@ private:
                 indexFile << string(BLOCK_SIZE, '*');
 
                 totalBlocks--;
-                numOverflowBlocks--;
+                overflowBlockCount--;
 
-                currentTotalSize -= oldBlock.blockSize;
-                numRecords -= oldBlock.numRecords;
+                totalBlockSize -= oldBlock.utilizedSpace;
+                numRecords -= oldBlock.recordCount;
 
-                for (int i = 0; i < oldBlock.numRecords; i++) {
+                for (int i = 0; i < oldBlock.recordCount; i++) {
 
                     // Consider last digitsToAddrNewBucket number of bits for each record
                     // If it matches the index of the new bucket then move to new bucket's block
@@ -343,18 +345,18 @@ private:
                     // Ex. For third new bucket at index 2 (binary: 10), we look at index 0 bucket for rehash and moving
                     // ghost keys; we now need to consider last 2 binary digits for each hashed id to see if it stays in current old
                     // bucket (last binary digits are 00) or gets moved to new bucket at index 2 (last binary digits are 10).
-                    if (getLastIthBits(hash(oldBlock.records[i].id), digitsToAddrNewBucket) == newBucketIdx) {
+                    if (getLastTHBits(GethashValue(oldBlock.blockRecords[i].id), digitsNeeded) == newBucketIndex) {
 
                         // Put record in new bucket
-                        int newBucketBlockPgIdx = pageDirectory[newBucketIdx];
-                        writeRecordToIndexFile(oldBlock.records[i], newBucketBlockPgIdx, indexFile);
+                        int newBucketBlockPgIdx = blockDirectory[newBucketIndex];
+                        storeRecordInDataFile(oldBlock.blockRecords[i], newBucketBlockPgIdx, indexFile);
 
                     }
                     else {
 
                         // Put record in "new" old bucket that will have all ghost keys removed
-                        int tempNewOldBlockPgIdx = newOldBucketPgIdx;
-                        writeRecordToIndexFile(oldBlock.records[i], tempNewOldBlockPgIdx, indexFile);
+                        int tempNewOldBlockPgIdx = newPhysicalPageIndexForOldBucket;
+                        storeRecordInDataFile(oldBlock.blockRecords[i], tempNewOldBlockPgIdx, indexFile);
 
                     }
 
@@ -372,7 +374,7 @@ private:
                 currentPageIndex = -1; // Placeholder to simulate moving to the next block
             }
 
-            numOverflowBlocks++;
+            overflowBlockCount++;
 
             // Update the block directory to point to the new blocks for both the old and new buckets
             blockDirectory[realBucketIndex] = newPhysicalPageIndexForOldBucket;
@@ -401,6 +403,9 @@ public:
         numRecords = 0;
         nextFreeBlock = 0;
         fName = indexFileName;
+        overflowBlockCount = 0; // Renamed from numOverflowBlocks
+        totalBlockSize = 0; // Renamed from currentTotalSize
+        nextFreeBlock = 0; // Renamed from nextFreePage
 
         // Create your EmployeeIndex file and write out the initial 4 buckets
         // make sure to account for the created buckets by incrementing nextFreeBlock appropriately
@@ -408,12 +413,55 @@ public:
     }
 
     // Read csv file and add records to the index
-    void createFromFile(string csvFName) {
+    void createFromFile(string csvFileName) {
+        // Open filestream for both reading and writing the index, and for reading the input CSV
+        fstream dataFile(fName, ios::in | ios::out | ios::trunc | ios::binary);
+        fstream inputFile(csvFileName, ios::in);
+
+        if (inputFile.is_open())
+            cout << csvFileName << " opened" << endl;
+
+        bool recordsRemaining = true;
+        while (recordsRemaining) {
+            Record record = extractRecord(inputFile);
+
+            if (record.id == -1) {
+                cout << "All records read!" << endl;
+                recordsRemaining = false;
+            } else {
+                insertRecord(record, dataFile);
+            }
+        }
+        dataFile.close();
+        inputFile.close();
         
     }
 
     // Given an ID, find the relevant record and print it
     Record findRecordById(int id) {
+        fstream dataFile(fName, ios::in);
+        int bucketIndex = getLastTHBits(GethashValue(id), i);
+
+        if (bucketIndex >= n) {
+            cout << "[SEARCH] Adjusting bucket index MSB to 0, # of buckets is: " << n << endl;
+            bucketIndex &= ~(1 << (i - 1));
+        }
+
+        int physicalPageIndex = blockDirectory[bucketIndex];
+        while (physicalPageIndex != -1) {
+            DataBlock currentBlock(physicalPageIndex);
+            currentBlock.populateBlock(dataFile);
+
+            for (int j = 0; j < currentBlock.recordCount; j++) {
+                if (currentBlock.blockRecords[j].id == id) return currentBlock.blockRecords[j];
+            }
+
+            physicalPageIndex = currentBlock.nextBlockIndex; // Adjusted to follow the new naming scheme
+        }
+
+        dataFile.close();
+        // Return a default record if not found; assuming a default constructor for Record is defined accordingly
+        return Record(-1);
         
     }
 };
