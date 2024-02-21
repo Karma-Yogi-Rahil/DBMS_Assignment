@@ -85,32 +85,90 @@ public:
 
 
     void readBlock(fstream &inputFile) {
-        inputFile.seekg(physicalIndex * PAGE_SIZE);
-        inputFile.read(reinterpret_cast<char *>(&nextBlockIndex), sizeof(nextBlockIndex));
-        inputFile.read(reinterpret_cast<char *>(&recordCount), sizeof(recordCount));
-        blockSize += 8;
+        if (!inputFile.is_open() || !inputFile.good()) {
+            throw runtime_error("Input file is not open or in a bad state.");
+        }
 
+        inputFile.seekg(physicalIndex * PAGE_SIZE, ios::beg);
+        if (inputFile.fail()) {
+            throw runtime_error("Failed to seek to the correct position in the file.");
+        }
+
+        if (!inputFile.read(reinterpret_cast<char *>(&nextBlockIndex), sizeof(nextBlockIndex)) ||
+            !inputFile.read(reinterpret_cast<char *>(&recordCount), sizeof(recordCount))) {
+            throw runtime_error("Failed to read block metadata from the file.");
+        }
+
+        if (recordCount < 0) {
+            throw runtime_error("Invalid record count read from the file.");
+        }
+
+        blockSize = sizeof(nextBlockIndex) + sizeof(recordCount);
+
+        // Read each record in the block
         for (int i = 0; i < recordCount; i++) {
-            readRecord(inputFile);
-            blockSize += blockRecords[i].calcSize();
 
+            if (!inputFile.good()) {
+                throw runtime_error("File stream is in a bad state before reading record.");
+            }
+
+            readRecord(inputFile);
+
+            int recordSize = blockRecords[i].calcSize();
+            if (recordSize <= 0) {
+                throw runtime_error("Invalid record size calculated.");
+            }
+            blockSize += recordSize;
         }
     }
 
     void readRecord(fstream &inputFile) {
+        if (!inputFile.good()) {
+            throw runtime_error("File stream is not in a good state at the start of readRecord.");
+        }
+
         int64_t Id;
         int64_t ManagerId;
         string name, bio;
-        inputFile.read(reinterpret_cast<char *>(&Id), sizeof(Id));
-        inputFile.ignore(1, '|');
-        getline(inputFile, name, '|');
-        getline(inputFile, bio, '|');
-        inputFile.read(reinterpret_cast<char *>(&ManagerId), sizeof(ManagerId));
-        inputFile.ignore(1, '|');
-        int regularId = (int)Id;
-        int regularManagerId = (int)ManagerId;
-        vector<string> recordData{to_string(regularId), name, bio, to_string(regularManagerId)};
 
+        if (!inputFile.read(reinterpret_cast<char *>(&Id), sizeof(Id))) {
+            throw runtime_error("Failed to read Id from the file.");
+        }
+
+        inputFile.ignore(1, '|');
+        if (inputFile.fail()) {
+            throw runtime_error("Failed to ignore delimiter after Id.");
+        }
+
+        if (!getline(inputFile, name, '|')) {
+            throw runtime_error("Failed to read name from the file.");
+        }
+
+        if (!getline(inputFile, bio, '|')) {
+            throw runtime_error("Failed to read bio from the file.");
+        }
+
+        if (!inputFile.read(reinterpret_cast<char *>(&ManagerId), sizeof(ManagerId))) {
+            throw runtime_error("Failed to read ManagerId from the file.");
+        }
+
+        inputFile.ignore(1, '|');
+        if (inputFile.fail()) {
+            throw runtime_error("Failed to ignore delimiter after ManagerId.");
+        }
+
+        if (Id < 0 || ManagerId < 0) {
+            throw runtime_error("Read an invalid negative Id or ManagerId.");
+        }
+
+        int regularId = static_cast<int>(Id);
+        int regularManagerId = static_cast<int>(ManagerId);
+
+        if (name.empty() || bio.empty()) {
+            throw runtime_error("Name or bio fields are empty.");
+        }
+
+        vector<string> recordData{to_string(regularId), name, bio, to_string(regularManagerId)};
         blockRecords.push_back(Record(recordData));
 
     }
@@ -308,6 +366,7 @@ private:
         }
 
     }
+
 
     Record getRecord(fstream &recordIn) {
 
